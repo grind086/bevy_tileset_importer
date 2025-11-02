@@ -1,0 +1,67 @@
+[package]
+name = "bevy_tileset_loader"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy_app = { version = "0.17", default-features = false }
+bevy_asset = { version = "0.17", default-features = false, features = ["asset_processor"]}
+bevy_color = { version = "0.17", default-features = false }
+bevy_image = { version = "0.17", default-features = false }
+bevy_log = { version = "0.17", default-features = false }
+bevy_math = { version = "0.17", default-features = false }
+bevy_platform = { version = "0.17", default-features = false }
+bevy_reflect = { version = "0.17", default-features = false }
+
+bincode = { version = "2", features = ["derive", "serde", "std"] }
+flate2 = { version = "1" }
+ron = { version = "0.11" }
+serde = { version = "1", features = ["derive"] }
+thiserror = { version = "2" }
+wgpu-types = { version = "26", default-features = false, features = ["serde"] }
+
+[dev-dependencies]
+# TODO: Replace all enabled features with "2d" in 0.18. This is just an expansion of that so we
+# don't pull in audio and the entire 3d PBR pipeline for examples.
+bevy = { version = "0.17", default-features = false, features = [
+    "asset_processor",
+    # default_app
+    "async_executor",
+    "bevy_asset",
+    "bevy_input_focus",
+    "bevy_log",
+    "bevy_state",
+    "bevy_window",
+    "custom_cursor",
+    # default_platform
+    "std",
+    "android-game-activity",
+    "android_shared_stdcxx",
+    "bevy_gilrs",
+    "bevy_winit",
+    "default_font",
+    "multi_threaded",
+    "webgl2",
+    "x11",
+    "wayland",
+    "sysinfo_plugin",
+    # common_api
+    "bevy_animation",
+    "bevy_camera",
+    "bevy_color",
+    "bevy_image",
+    "bevy_mesh",
+    "bevy_shader",
+    "bevy_text",
+    "hdr",
+    "png",
+    # ui_bevy_render
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_ui_render",
+    # 2d_api
+    "bevy_sprite",
+    # 2d_bevy_render
+    "bevy_post_process",
+    "bevy_sprite_render",
+] }
