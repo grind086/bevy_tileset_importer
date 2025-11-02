@@ -3,7 +3,7 @@ use bevy::{
     sprite_render::{AlphaMode2d, TileData, TilemapChunk, TilemapChunkTileData},
 };
 use bevy_log::LogPlugin;
-use bevy_tileset_importer::{TileIndex, Tileset, TilesetLoaderPlugin};
+use bevy_tileset_importer::{TileIndex, Tileset, TilesetImporterPlugin};
 
 const TILE_HEIGHT: f32 = 64.;
 const TILE_DISPLAY_SIZE: UVec2 = UVec2::splat(TILE_HEIGHT as _);
@@ -20,7 +20,7 @@ fn main() -> AppExit {
                     filter: "info,wgpu=error,naga=warn,bevy_tileset_importer=trace".into(),
                     ..default()
                 }),
-            TilesetLoaderPlugin,
+            TilesetImporterPlugin,
         ))
         .add_systems(Startup, (setup_scene, load_tileset))
         .add_systems(Update, make_tilemaps)

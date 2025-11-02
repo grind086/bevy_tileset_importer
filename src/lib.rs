@@ -19,9 +19,9 @@ mod helpers;
 pub type TileIndex = u16;
 pub type TileSourceIndex = (usize, TileIndex);
 
-pub struct TilesetLoaderPlugin;
+pub struct TilesetImporterPlugin;
 
-impl Plugin for TilesetLoaderPlugin {
+impl Plugin for TilesetImporterPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<Tileset>()
             .init_asset_loader::<import::ImportedTilesetLoader>()
