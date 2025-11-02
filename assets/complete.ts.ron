@@ -1,0 +1,32 @@
+// This is the equivalent of `minimal.ts.ron`
+(
+    tile_size: None,
+    sources: [
+        // Multi-tile image
+        (
+            path: "tiles_abcd.png",
+            layout: Grid((
+                tile_size: (16, 16),
+                tile_padding: (0, 0),
+                image_margin: (min: (0, 0), max: (0, 0)),
+            )),
+            image_settings: None,
+        ),
+        // Single-tile images
+        (
+            path: "tile_e.png",
+            layout: Single,
+            image_settings: None,
+        ),
+        (
+            path: "tile_f.png",
+            layout: Single,
+            image_settings: None,
+        ),
+    ],
+    filter: All,
+    groups: {
+        "vowels": [(0, 0), (1, 0)],
+        "consonants": [(0, 1), (0, 2), (0, 3), (2, 0)],
+    },
+)

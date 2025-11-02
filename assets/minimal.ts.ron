@@ -1,0 +1,21 @@
+// This is the equivalent of `complete.ts.ron`
+(
+    sources: [
+        // Multi-tile image
+        (
+            path: "tiles_abcd.png",
+            layout: Grid((
+                tile_size: (16, 16),
+            )),
+        ),
+        // Single-tile images
+        ( path: "tile_e.png" ),
+        ( path: "tile_f.png" ),
+    ],
+    groups: {
+        // A, E
+        "vowels": [(0, 0), (1, 0)],
+        // B, C, D, F
+        "consonants": [(0, 1), (0, 2), (0, 3), (2, 0)],
+    },
+)
