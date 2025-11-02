@@ -1,13 +1,9 @@
 // This is the equivalent of `complete.ts.ron`
 (
+    tile_size: (16, 16),
     sources: [
         // Multi-tile image
-        (
-            path: "tiles_abcd.png",
-            layout: Grid((
-                tile_size: (16, 16),
-            )),
-        ),
+        ( path: "tiles_abcd.png", layout: Grid() ),
         // Single-tile images
         ( path: "tile_e.png" ),
         ( path: "tile_f.png" ),

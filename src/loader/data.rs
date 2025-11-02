@@ -1,6 +1,6 @@
 use bevy_asset::{AssetLoader, AssetPath, LoadContext, LoadDirectError, io::Reader};
 use bevy_image::{Image, ImageLoaderSettings, ImageSampler};
-use bevy_math::UVec2;
+use bevy_math::{URect, UVec2, UVec4, Vec4Swizzles};
 use bevy_platform::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -10,30 +10,10 @@ use crate::{
     TileSourceIndex,
     helpers::SetOrExpected,
     import::{TilesetImportData, TilesetSource},
-    layout::{LayoutError, TileFilter, TileInfo, TilesetLayout},
+    layout::{
+        FramesLayout, GridLayout, LayoutError, TileFilter, TileFrame, TileInfo, TilesetLayout,
+    },
 };
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct DataTileset {
-    /// Explicitly sets the global tile size. If not set, it will be detected from the first
-    /// source.
-    #[serde(default)]
-    pub tile_size: Option<UVec2>,
-    pub sources: Vec<DataTilesetSource>,
-    #[serde(default)]
-    pub filter: TileFilter<TileSourceIndex>,
-    #[serde(default)]
-    pub groups: HashMap<String, Vec<TileSourceIndex>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DataTilesetSource {
-    pub path: AssetPath<'static>,
-    #[serde(default)]
-    pub layout: TilesetLayout,
-    #[serde(default)]
-    pub image_settings: Option<ImageLoaderSettings>,
-}
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DataTilesetSettings {
@@ -80,7 +60,6 @@ impl AssetLoader for DataTilesetLoader {
         }
 
         // If these are not already set, they will be detected from the first loaded source
-        let mut tile_size = tile_size;
         let mut texture_format = texture_format;
 
         let mut source_tiles = Vec::with_capacity(sources.len());
@@ -88,7 +67,7 @@ impl AssetLoader for DataTilesetLoader {
 
         for (id, source) in sources.into_iter().enumerate() {
             let (tile_info, source) =
-                load_source(load_context, &mut tile_size, &mut texture_format, &source)
+                load_source(load_context, tile_size, &mut texture_format, &source)
                     .await
                     .map_err(|err| DataTilesetError::source_err(id, &source.path, err))?;
 
@@ -97,7 +76,7 @@ impl AssetLoader for DataTilesetLoader {
         }
 
         Ok(TilesetImportData {
-            tile_size: tile_size.expect("will be set if at least one source exists"),
+            tile_size,
             tile_indices: filter.indices(&source_tiles),
             tile_groups: groups,
             sources: loaded_sources,
@@ -110,6 +89,69 @@ impl AssetLoader for DataTilesetLoader {
     fn extensions(&self) -> &[&str] {
         &[crate::tileset_ext_literal!("ron")]
     }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct DataTileset {
+    /// The size of tiles in the [`Tileset`][crate::Tileset].
+    pub tile_size: UVec2,
+    pub sources: Vec<DataTilesetSource>,
+    #[serde(default)]
+    pub filter: TileFilter<TileSourceIndex>,
+    #[serde(default)]
+    pub groups: HashMap<String, Vec<TileSourceIndex>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DataTilesetSource {
+    pub path: AssetPath<'static>,
+    #[serde(default)]
+    pub layout: DataTilesetLayout,
+    #[serde(default)]
+    pub image_settings: Option<ImageLoaderSettings>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub enum DataTilesetLayout {
+    #[default]
+    Single,
+    Grid {
+        #[serde(default)]
+        tile_padding: UVec2,
+        #[serde(default)]
+        image_margin: UVec4,
+    },
+    Frames(Vec<TileFrame>),
+}
+
+impl DataTilesetLayout {
+    pub fn into_layout(&self, tile_size: UVec2) -> TilesetLayout {
+        match self {
+            Self::Single => TilesetLayout::Single,
+            &Self::Grid {
+                tile_padding,
+                image_margin,
+            } => TilesetLayout::Grid(GridLayout {
+                tile_size,
+                tile_padding,
+                image_margin: URect {
+                    min: image_margin.xy(),
+                    max: image_margin.zw(),
+                },
+            }),
+            Self::Frames(frames) => TilesetLayout::Frames(FramesLayout {
+                tile_size,
+                frames: frames.clone(),
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DataTilesetFrame {
+    pub frame: UVec4,
+    #[serde(default)]
+    pub anchor: UVec2,
 }
 
 #[derive(Debug, Error)]
@@ -158,11 +200,11 @@ pub enum SourceError {
 
 async fn load_source(
     load_context: &mut LoadContext<'_>,
-    tile_size: &mut Option<UVec2>,
+    tile_size: UVec2,
     texture_format: &mut Option<TextureFormat>,
     source: &DataTilesetSource,
 ) -> Result<(TileInfo, TilesetSource), SourceError> {
-    let layout = source.layout.clone();
+    let layout = source.layout.into_layout(tile_size);
     let settings = source.image_settings.clone().unwrap_or_default();
     let mut texture: Image = load_context
         .loader()
@@ -174,10 +216,10 @@ async fn load_source(
 
     let tile_info = layout.tile_info(texture.size())?;
 
-    // Detect or check the validity of this source's tile size
-    if let Err(&expected) = tile_size.set_or_expected(tile_info.size) {
+    // Make sure the final layout is using the correct tile size
+    if tile_size != tile_info.size {
         return Err(SourceError::TileSize {
-            expected,
+            expected: tile_size,
             got: tile_info.size,
         });
     }

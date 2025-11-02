@@ -1,15 +1,14 @@
 // This is the equivalent of `minimal.ts.ron`
 (
-    tile_size: None,
+    tile_size: (16, 16),
     sources: [
         // Multi-tile image
         (
             path: "tiles_abcd.png",
-            layout: Grid((
-                tile_size: (16, 16),
+            layout: Grid(
                 tile_padding: (0, 0),
-                image_margin: (min: (0, 0), max: (0, 0)),
-            )),
+                image_margin: (0, 0, 0, 0),
+            ),
             image_settings: None,
         ),
         // Single-tile images
