@@ -9,6 +9,7 @@ use bevy_asset::{
 };
 use bevy_color::{Color, LinearRgba};
 use bevy_image::{Image, ImageSampler, TextureAccessError, TextureFormatPixelInfo};
+use bevy_log::warn;
 use bevy_math::UVec2;
 use bevy_platform::collections::HashMap;
 use bevy_reflect::TypePath;
@@ -207,9 +208,21 @@ impl AssetLoader for ImportedTilesetLoader {
         texture.data_order = TextureDataOrder::LayerMajor;
         texture.sampler = sampler;
 
+        let tile_count =
+            TileIndex::try_from(texture_size.depth_or_array_layers).unwrap_or_else(|_| {
+                warn!(
+                    "Tileset {} has {} tiles, but only {} can be indexed",
+                    load_context.asset_path(),
+                    texture_size.depth_or_array_layers,
+                    TileIndex::MAX
+                );
+                TileIndex::MAX
+            });
+
         Ok(Tileset {
             texture: load_context.add_labeled_asset("texture".into(), texture),
             groups: TileGroups::from_iter(tile_groups),
+            tile_count,
         })
     }
 }

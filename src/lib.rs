@@ -53,6 +53,7 @@ pub struct Tileset {
     #[dependency]
     pub texture: Handle<Image>,
     pub groups: TileGroups,
+    pub tile_count: TileIndex,
 }
 
 impl Deref for Tileset {
