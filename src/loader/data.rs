@@ -66,10 +66,11 @@ impl AssetLoader for DataTilesetLoader {
         let mut loaded_sources = Vec::with_capacity(sources.len());
 
         for (id, source) in sources.into_iter().enumerate() {
+            let source_path = source.path.clone();
             let (tile_info, source) =
-                load_source(load_context, tile_size, &mut texture_format, &source)
+                load_source(load_context, tile_size, &mut texture_format, source)
                     .await
-                    .map_err(|err| DataTilesetError::source_err(id, &source.path, err))?;
+                    .map_err(|err| DataTilesetError::source_err(id, &source_path, err))?;
 
             source_tiles.push(tile_info.count);
             loaded_sources.push(source);
@@ -202,10 +203,10 @@ async fn load_source(
     load_context: &mut LoadContext<'_>,
     tile_size: UVec2,
     texture_format: &mut Option<TextureFormat>,
-    source: &DataTilesetSource,
+    source: DataTilesetSource,
 ) -> Result<(TileInfo, TilesetSource), SourceError> {
     let layout = source.layout.into_layout(tile_size);
-    let settings = source.image_settings.clone().unwrap_or_default();
+    let settings = source.image_settings.unwrap_or_default();
     let mut texture: Image = load_context
         .loader()
         .immediate()
