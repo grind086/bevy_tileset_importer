@@ -3,13 +3,13 @@ use std::{fmt::Display, io};
 use bevy_asset::{
     Asset, AssetLoader, AsyncWriteExt, LoadContext, LoadedAsset, RenderAssetUsages,
     io::{Reader, Writer},
-    processor::{LoadTransformAndSave, ProcessError},
+    processor::{LoadTransformAndSave, LoadTransformAndSaveSettings, ProcessError},
     saver::{AssetSaver, SavedAsset},
     transformer::{AssetTransformer, TransformedAsset},
 };
 use bevy_color::{Color, LinearRgba};
 use bevy_image::{Image, ImageSampler, TextureAccessError, TextureFormatPixelInfo};
-use bevy_log::warn;
+use bevy_log::{trace, warn};
 use bevy_math::UVec2;
 use bevy_platform::collections::HashMap;
 use bevy_reflect::TypePath;
@@ -18,6 +18,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use flate2::{Compression, read::DeflateDecoder, write::DeflateEncoder};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use wgpu_types::{Extent3d, TextureDataOrder, TextureDimension, TextureFormat};
 
@@ -27,6 +28,11 @@ use crate::{
 };
 
 pub type TilesetImportProcess<L> = LoadTransformAndSave<L, TilesetImporter, ImportedTilesetSaver>;
+pub type TilesetImportSettings<L> = LoadTransformAndSaveSettings<
+    <L as AssetLoader>::Settings,
+    <TilesetImporter as AssetTransformer>::Settings,
+    <ImportedTilesetSaver as AssetSaver>::Settings,
+>;
 
 /// Instantiates a [`TilesetImportProcess<L>`].
 pub fn import_process<L: AssetLoader<Asset = TilesetImportData>>() -> TilesetImportProcess<L> {
@@ -47,8 +53,6 @@ pub struct TilesetImportData {
     pub sources: Vec<TilesetSource>,
     /// The tileset's output [`TextureFormat`].
     pub texture_format: TextureFormat,
-    /// The samper used by the tileset's output texture.
-    pub sampler: ImageSampler,
     /// If `true`, mipmaps will be generated for tiles.
     pub generate_mips: bool,
 }
@@ -80,7 +84,6 @@ impl AssetTransformer for TilesetImporter {
             tile_groups,
             sources,
             texture_format,
-            sampler,
             generate_mips,
         } = asset.get();
 
@@ -148,11 +151,15 @@ impl AssetTransformer for TilesetImporter {
                 depth_or_array_layers: imported_count.into(),
             },
             texture_data,
-            sampler: sampler.clone(),
         });
 
         Ok(TransformedAsset::from_loaded(imported.into()).expect("the asset type is known"))
     }
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct TilesetLoaderSettings {
+    pub sampler: ImageSampler,
 }
 
 /// An [`AssetSaver`] for imported tileset data.
@@ -160,7 +167,7 @@ pub struct ImportedTilesetSaver;
 
 impl AssetSaver for ImportedTilesetSaver {
     type Asset = ImportedTilesetData;
-    type Settings = ();
+    type Settings = TilesetLoaderSettings;
     type OutputLoader = ImportedTilesetLoader;
     type Error = SaveImportedTilesetError;
 
@@ -168,9 +175,10 @@ impl AssetSaver for ImportedTilesetSaver {
         &self,
         writer: &mut Writer,
         asset: SavedAsset<'_, Self::Asset>,
-        &(): &Self::Settings,
+        settings: &Self::Settings,
     ) -> Result<<Self::OutputLoader as AssetLoader>::Settings, Self::Error> {
-        asset.write(writer).await
+        asset.write(writer).await?;
+        Ok(settings.clone())
     }
 }
 
@@ -180,21 +188,26 @@ pub struct ImportedTilesetLoader;
 
 impl AssetLoader for ImportedTilesetLoader {
     type Asset = Tileset;
-    type Settings = ();
+    type Settings = TilesetLoaderSettings;
     type Error = LoadImportedTilesetError;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
-        &(): &Self::Settings,
+        settings: &Self::Settings,
         load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
+        trace!(
+            "Loading tileset {:?} with settings {:?}",
+            load_context.asset_path(),
+            settings
+        );
+
         let ImportedTilesetData {
             tile_groups,
             texture_format,
             texture_size,
             texture_data,
-            sampler,
         } = ImportedTilesetData::read(reader).await?;
 
         let mut texture = Image::new(
@@ -206,7 +219,7 @@ impl AssetLoader for ImportedTilesetLoader {
         );
 
         texture.data_order = TextureDataOrder::LayerMajor;
-        texture.sampler = sampler;
+        texture.sampler = settings.sampler.clone();
 
         let tile_count =
             TileIndex::try_from(texture_size.depth_or_array_layers).unwrap_or_else(|_| {
@@ -235,8 +248,6 @@ pub struct ImportedTilesetData {
     #[bincode(with_serde)]
     texture_size: Extent3d,
     texture_data: Vec<u8>,
-    #[bincode(with_serde)]
-    sampler: ImageSampler,
 }
 
 impl ImportedTilesetData {

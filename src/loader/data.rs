@@ -1,5 +1,5 @@
 use bevy_asset::{AssetLoader, AssetPath, LoadContext, LoadDirectError, io::Reader};
-use bevy_image::{Image, ImageLoaderSettings, ImageSampler};
+use bevy_image::{Image, ImageLoaderSettings};
 use bevy_math::{URect, UVec2, UVec4, Vec4Swizzles};
 use bevy_platform::collections::HashMap;
 use serde::{Deserialize, Serialize};
@@ -9,16 +9,16 @@ use wgpu_types::TextureFormat;
 use crate::{
     TileSourceIndex,
     helpers::SetOrExpected,
-    import::{TilesetImportData, TilesetSource},
+    import::{TilesetImportData, TilesetImportSettings, TilesetSource},
     layout::{
         FramesLayout, GridLayout, LayoutError, TileFilter, TileFrame, TileInfo, TilesetLayout,
     },
 };
 
+pub type DataTilesetSettings = TilesetImportSettings<DataTilesetLoader>;
+
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct DataTilesetSettings {
-    /// The [`ImageSampler`] to use for the loaded tileset texture.
-    pub sampler: ImageSampler,
+pub struct DataTilesetLoadSettings {
     /// Explicitly set the desired [`TextureFormat`] of the loaded tileset. If not set, it will
     /// be detected from the first source.
     pub texture_format: Option<TextureFormat>,
@@ -31,14 +31,13 @@ pub struct DataTilesetLoader;
 
 impl AssetLoader for DataTilesetLoader {
     type Asset = TilesetImportData;
-    type Settings = DataTilesetSettings;
+    type Settings = DataTilesetLoadSettings;
     type Error = DataTilesetError;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
-        &DataTilesetSettings {
-            ref sampler,
+        &DataTilesetLoadSettings {
             texture_format,
             generate_mips,
         }: &Self::Settings,
@@ -82,7 +81,6 @@ impl AssetLoader for DataTilesetLoader {
             tile_groups: groups,
             sources: loaded_sources,
             texture_format: texture_format.expect("will be set if at least one source exists"),
-            sampler: sampler.clone(),
             generate_mips,
         })
     }

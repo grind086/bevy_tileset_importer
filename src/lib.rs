@@ -14,6 +14,8 @@ pub mod import;
 pub mod layout;
 pub mod loader;
 
+pub use import::TilesetLoaderSettings;
+
 mod helpers;
 
 pub type TileIndex = u16;

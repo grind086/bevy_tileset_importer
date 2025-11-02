@@ -71,7 +71,6 @@ impl AssetLoader for ImageTilesetLoader {
                 .map(|(name, tiles)| (name.clone(), tiles.iter().map(|i| (0, *i)).collect()))
                 .collect(),
             texture_format: source.texture_descriptor.format,
-            sampler: source.sampler.clone(),
             sources: vec![TilesetSource {
                 source,
                 layout: layout.clone(),
