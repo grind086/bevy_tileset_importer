@@ -1,5 +1,5 @@
 [package]
-name = "bevy_tileset_loader"
+name = "bevy_tileset_importer"
 version = "0.1.0"
 edition = "2024"
 
