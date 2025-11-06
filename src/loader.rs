@@ -11,19 +11,27 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TilesetLoaderSettings {
     /// Sets the sampler that will be used for the tileset texture.
+    #[serde(default)]
     pub sampler: ImageSampler,
     /// Sets the asset usage for the tileset texture. Defaults to `RENDER_WORLD`.
     ///
     /// If you need to manually access the texture data after it is loaded, set this to
     /// `RENDER_WORLD | MAIN_WORLD`.
+    #[serde(default = "TilesetLoaderSettings::default_asset_usage")]
     pub asset_usage: RenderAssetUsages,
+}
+
+impl TilesetLoaderSettings {
+    const fn default_asset_usage() -> RenderAssetUsages {
+        RenderAssetUsages::RENDER_WORLD
+    }
 }
 
 impl Default for TilesetLoaderSettings {
     fn default() -> Self {
         Self {
             sampler: ImageSampler::Default,
-            asset_usage: RenderAssetUsages::RENDER_WORLD,
+            asset_usage: Self::default_asset_usage(),
         }
     }
 }

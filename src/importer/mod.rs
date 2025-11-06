@@ -31,14 +31,23 @@ pub struct TilesetImportSettings {
     /// Sets a desired texture format for all imported tilesets.
     ///
     /// If a source image cannot be converted to this format, the import will fail with an error.
+    #[serde(default)]
     pub texture_format: Option<TextureFormat>,
     /// If set to `true`, mipmaps will be generated for each tile.
     ///
     /// Mipmap generation is limited to texture formats supported by [`Image::get_color_at`].
+    #[serde(default)]
     pub generate_mips: bool,
     /// A deflate [compression level][flate2::Compression] to use for the texture, from 0-9.
     /// 0 leaves the data uncompressed, and 9 means "take as long as you want".
+    #[serde(default = "TilesetImportSettings::default_compression")]
     pub compression: u32,
+}
+
+impl TilesetImportSettings {
+    const fn default_compression() -> u32 {
+        1
+    }
 }
 
 impl Default for TilesetImportSettings {
@@ -46,7 +55,7 @@ impl Default for TilesetImportSettings {
         Self {
             texture_format: None,
             generate_mips: false,
-            compression: 1,
+            compression: Self::default_compression(),
         }
     }
 }
