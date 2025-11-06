@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 
 use bevy_asset::Asset;
-use bevy_image::{Image, TextureFormatPixelInfo, Volume};
+use bevy_image::{Image, TextureAccessError, TextureFormatPixelInfo, Volume};
 use bevy_reflect::TypePath;
 use bincode::{Decode, Encode};
 use flate2::Compression;
@@ -37,8 +37,12 @@ pub enum TilesetFileError {
     /// data.
     #[error("the tileset texture data must be uninitialized")]
     Uninitialized,
-    #[error("the tileset texture data, format, and size are not in agreement")]
-    InvalidData,
+    #[error("failed to get the pixel size of the stored format: {0}")]
+    InvalidFormat(#[from] TextureAccessError),
+    #[error(
+        "the tileset texture data, format, and size are not in agreement. Expected {exp} bytes, but got {got} bytes."
+    )]
+    InvalidData { exp: usize, got: usize },
     /// Returned when attempting to construct or load a tileset file containing more than
     /// [`TileIndex::MAX`] tiles.
     #[error("the tileset texture contains {0} tiles, but the maximum tile index is {max}", max=TileIndex::MAX)]
@@ -174,19 +178,21 @@ fn validate_data_volume(
     texture_mips: u32,
     texture_data: &[u8],
 ) -> Result<(), TilesetFileError> {
-    if let Ok(pixel_size) = texture_format.pixel_size() {
-        let n_pixels = (0..texture_mips)
-            .map(|m| {
-                texture_size
-                    .mip_level_size(m, TextureDimension::D2)
-                    .volume()
-            })
-            .sum::<usize>();
+    let pixel_size = texture_format.pixel_size()?;
+    let n_pixels = (0..texture_mips)
+        .map(|m| {
+            texture_size
+                .mip_level_size(m, TextureDimension::D2)
+                .volume()
+        })
+        .sum::<usize>();
 
-        if n_pixels * pixel_size == texture_data.len() {
-            return Ok(());
-        }
+    if n_pixels * pixel_size == texture_data.len() {
+        Ok(())
+    } else {
+        Err(TilesetFileError::InvalidData {
+            exp: n_pixels * pixel_size,
+            got: texture_data.len(),
+        })
     }
-
-    Err(TilesetFileError::InvalidData)
 }
