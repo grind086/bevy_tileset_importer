@@ -2,298 +2,197 @@ use bevy_math::{URect, UVec2};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{TileIndex, TileSourceIndex};
+use crate::TileIndex;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TileFrame {
+    pub frame: URect,
+    #[serde(default)]
+    pub anchor: UVec2,
+}
+
+impl TileFrame {
+    pub const fn from_tile_size(tile_size: UVec2) -> Self {
+        Self {
+            frame: URect {
+                min: UVec2::ZERO,
+                max: tile_size,
+            },
+            anchor: UVec2::ZERO,
+        }
+    }
+
+    pub fn is_valid(&self, image_size: UVec2, tile_size: UVec2) -> bool {
+        self.frame.max.cmplt(image_size).all()
+            && (self.frame.size() + self.anchor).cmplt(tile_size).all()
+    }
+}
+
+#[derive(Debug)]
 pub enum TilesetLayout {
-    /// The source image contains a single tile.
-    #[default]
-    Single,
-    /// Tiles in the source image are laid out in a grid.
-    Grid(GridLayout),
-    /// Tiles in the source image are defined by rectangular frames in the source image, and the
-    /// frames' offsets within their tiles.
-    Frames(FramesLayout),
+    Grid { padding: UVec2, margins: URect },
+    Frames(Vec<TileFrame>),
+}
+
+impl TilesetLayout {
+    pub const fn unpadded_grid() -> Self {
+        Self::Grid {
+            padding: UVec2::ZERO,
+            margins: URect {
+                min: UVec2::new(0, 0),
+                max: UVec2::new(0, 0),
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TilesetSourceFrames {
+    Grid {
+        tile_count: TileIndex,
+        tile_size: UVec2,
+        grid_size: UVec2,
+        padding: UVec2,
+        margins: URect,
+    },
+    Frames(Vec<TileFrame>),
 }
 
 #[derive(Debug, Error)]
 pub enum LayoutError {
-    /// The source image contained no pixels when using [`TilesetLayout::Single`].
-    #[error("the source image is empty")]
-    EmptyImage,
-    /// The requested tile index wasn't present in the layout.
-    #[error("tile index was {idx}, but layout contained {len} tiles")]
-    OutOfRange { idx: TileIndex, len: TileIndex },
-    /// The layout contained more than [`TileIndex::MAX`] tiles.
+    #[error("")]
+    InvalidGrid {
+        image_size: UVec2,
+        tile_size: UVec2,
+        padding: UVec2,
+        margins: URect,
+    },
     #[error(
-        "the layout specified {0} tiles, but the maximum tile index is {max}",
-        max=TileIndex::MAX
-    )]
-    TooManyTiles(usize),
-    /// A [`FramesLayout`] contained a frame outside its source image.
-    #[error(
-        "frame {index} with shape {frame:?} does not fit within its source image sized {image_size}"
+        "frame {frame:?} is not compatible with source image size {image_size} and tile size {tile_size}"
     )]
     InvalidFrame {
-        index: usize,
-        frame: URect,
         image_size: UVec2,
-    },
-    /// A [`FramesLayout`] contained a frame larger than its tile size.
-    #[error(
-        "frame {index} with shape {frame:?} and anchor {anchor:?} does not fit within a tile of size {tile_size}"
-    )]
-    InvalidAnchor {
-        index: usize,
-        frame: URect,
-        anchor: UVec2,
         tile_size: UVec2,
+        frame: TileFrame,
     },
-    #[error("todo")]
-    Other,
-}
-
-pub struct TileInfo {
-    pub size: UVec2,
-    pub count: u16,
+    #[error(
+        "the source layout defines {count} tiles, but the maximum index is {}",
+        TileIndex::MAX
+    )]
+    TooManyTiles { count: usize },
+    #[error("tile index was {idx}, but the source contains {max} tiles")]
+    OutOfRange { idx: TileIndex, max: TileIndex },
 }
 
 impl TilesetLayout {
-    pub fn tile_info(&self, image_size: UVec2) -> Result<TileInfo, LayoutError> {
+    pub fn tile_frames(
+        self,
+        image_size: UVec2,
+        tile_size: UVec2,
+    ) -> Result<TilesetSourceFrames, LayoutError> {
         match self {
-            Self::Single => single_info(image_size),
-            Self::Grid(layout) => layout.tile_info(image_size),
-            Self::Frames(layout) => layout.tile_info(image_size),
+            Self::Grid { padding, margins } => {
+                Self::grid_tile_frames(image_size, tile_size, padding, margins)
+            }
+            Self::Frames(frames) => Self::frames_tile_frames(image_size, tile_size, frames),
         }
     }
 
-    pub fn frame(&self, image_size: UVec2, index: u16) -> Result<TileFrame, LayoutError> {
-        match self {
-            Self::Single => single_frame(image_size, index),
-            Self::Grid(layout) => layout.frame(image_size, index),
-            Self::Frames(layout) => layout.frame(index),
+    fn grid_tile_frames(
+        image_size: UVec2,
+        tile_size: UVec2,
+        padding: UVec2,
+        margins: URect,
+    ) -> Result<TilesetSourceFrames, LayoutError> {
+        let adjusted_size = image_size - margins.size() + padding;
+
+        if adjusted_size % tile_size != UVec2::ZERO {
+            return Err(LayoutError::InvalidGrid {
+                image_size,
+                tile_size,
+                padding,
+                margins,
+            });
         }
-    }
-}
 
-fn single_info(image_size: UVec2) -> Result<TileInfo, LayoutError> {
-    if !image_size.cmpne(UVec2::ZERO).all() {
-        return Err(LayoutError::EmptyImage);
-    }
-
-    Ok(TileInfo {
-        size: image_size,
-        count: 1,
-    })
-}
-
-fn single_frame(image_size: UVec2, index: u16) -> Result<TileFrame, LayoutError> {
-    if !image_size.cmpne(UVec2::ZERO).all() {
-        return Err(LayoutError::EmptyImage);
-    }
-
-    if index != 0 {
-        return Err(LayoutError::OutOfRange { idx: index, len: 1 });
-    }
-
-    Ok(TileFrame::from_size(image_size))
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct GridLayout {
-    /// The size of a tile in pixels.
-    pub tile_size: UVec2,
-    /// The number of pixels between tiles.
-    #[serde(default)]
-    pub tile_padding: UVec2,
-    /// The size of the margin around the image border.
-    #[serde(default)]
-    pub image_margin: URect,
-}
-
-impl GridLayout {
-    pub fn from_tile_size(tile_size: UVec2) -> Self {
-        Self {
-            tile_size,
-            tile_padding: UVec2::ZERO,
-            image_margin: URect::new(0, 0, 0, 0),
-        }
-    }
-
-    pub fn margin_size(&self) -> UVec2 {
-        self.image_margin.min + self.image_margin.max
-    }
-
-    pub fn grid(&self, image_size: UVec2) -> UVec2 {
-        (image_size - self.margin_size() + self.tile_padding) / (self.tile_size + self.tile_padding)
-    }
-
-    pub fn tile_info(&self, image_size: UVec2) -> Result<TileInfo, LayoutError> {
-        let count = self.grid(image_size).element_product();
-        Ok(TileInfo {
-            size: self.tile_size,
-            count: count
+        let grid_size = adjusted_size / tile_size;
+        let tile_count =
+            grid_size
+                .element_product()
                 .try_into()
-                .map_err(|_| LayoutError::TooManyTiles(count as _))?,
+                .map_err(|_| LayoutError::TooManyTiles {
+                    count: grid_size.element_product() as _,
+                })?;
+
+        Ok(TilesetSourceFrames::Grid {
+            tile_count,
+            tile_size,
+            grid_size,
+            padding,
+            margins,
         })
     }
 
-    pub fn frame(&self, image_size: UVec2, index: u16) -> Result<TileFrame, LayoutError> {
-        let idx = index as u32;
-        let grid = self.grid(image_size);
-        let len = grid.element_product();
-        (idx < len)
-            .then(|| {
-                let x = idx % grid.x;
-                let y = idx / grid.x;
+    fn frames_tile_frames(
+        image_size: UVec2,
+        tile_size: UVec2,
+        frames: Vec<TileFrame>,
+    ) -> Result<TilesetSourceFrames, LayoutError> {
+        for frame in &frames {
+            if !frame.is_valid(image_size, tile_size) {
+                return Err(LayoutError::InvalidFrame {
+                    tile_size,
+                    image_size,
+                    frame: *frame,
+                });
+            }
+        }
 
-                let min = (self.tile_size + self.tile_padding) * UVec2::new(x, y);
-                let max = min + self.tile_size;
+        if frames.len() > usize::from(TileIndex::MAX) {
+            return Err(LayoutError::TooManyTiles {
+                count: frames.len(),
+            });
+        }
+
+        Ok(TilesetSourceFrames::Frames(frames))
+    }
+}
+
+impl TilesetSourceFrames {
+    pub fn tile_count(&self) -> TileIndex {
+        match self {
+            Self::Grid { tile_count, .. } => *tile_count,
+            Self::Frames(frames) => frames.len() as _,
+        }
+    }
+
+    pub fn get(&self, tile_index: TileIndex) -> Result<TileFrame, LayoutError> {
+        match self {
+            Self::Grid {
+                tile_count,
+                tile_size,
+                grid_size,
+                padding,
+                margins,
+            } => (tile_index < *tile_count).then(|| {
+                let grid_index = UVec2 {
+                    x: u32::from(tile_index) % grid_size.x,
+                    y: u32::from(tile_index) / grid_size.x,
+                };
+
+                let min = margins.min + grid_index * (tile_size + padding);
+                let max = min + *tile_size;
 
                 TileFrame {
                     frame: URect { min, max },
                     anchor: UVec2::ZERO,
                 }
-            })
-            .ok_or(LayoutError::OutOfRange {
-                idx: index,
-                len: len as _,
-            })
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FramesLayout {
-    pub tile_size: UVec2,
-    pub frames: Vec<TileFrame>,
-}
-
-impl FramesLayout {
-    pub fn tile_info(&self, image_size: UVec2) -> Result<TileInfo, LayoutError> {
-        for (index, &TileFrame { frame, anchor }) in self.frames.iter().enumerate() {
-            if !frame.max.cmple(image_size).all() {
-                return Err(LayoutError::InvalidFrame {
-                    index,
-                    frame,
-                    image_size,
-                });
-            }
-
-            if !(anchor + frame.size()).cmple(self.tile_size).all() {
-                return Err(LayoutError::InvalidAnchor {
-                    index,
-                    frame,
-                    anchor,
-                    tile_size: self.tile_size,
-                });
-            }
+            }),
+            Self::Frames(frames) => frames.get(usize::from(tile_index)).copied(),
         }
-
-        let count = self
-            .frames
-            .len()
-            .try_into()
-            .map_err(|_| LayoutError::TooManyTiles(self.frames.len()))?;
-
-        Ok(TileInfo {
-            size: self.tile_size,
-            count,
+        .ok_or_else(|| LayoutError::OutOfRange {
+            idx: tile_index,
+            max: self.tile_count(),
         })
-    }
-
-    pub fn frame(&self, index: u16) -> Result<TileFrame, LayoutError> {
-        self.frames
-            .get(index as usize)
-            .copied()
-            .ok_or(LayoutError::OutOfRange {
-                idx: index,
-                len: self.frames.len() as _,
-            })
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct TileFrame {
-    /// The frame in the tileset image.
-    pub frame: URect,
-    /// The offset of the frame within its tile.
-    pub anchor: UVec2,
-}
-
-impl TileFrame {
-    pub fn from_size(size: UVec2) -> Self {
-        Self {
-            frame: URect {
-                min: UVec2::ZERO,
-                max: size,
-            },
-            anchor: UVec2::ZERO,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TileFilter<T> {
-    /// Include all tiles specified in the layout.
-    All,
-    /// Only include tiles in named groups.
-    None,
-    /// Include only the tiles with the given source indices.
-    ///
-    /// The indices of the tiles in the tileset will be the same as in this list.
-    List(Vec<T>),
-}
-
-impl TileFilter<TileIndex> {
-    pub fn indices(&self, source_index: usize, image_tiles: TileIndex) -> TileFilterIndices {
-        match self {
-            Self::All => TileFilterIndices::AllSingle(source_index, image_tiles),
-            Self::None => TileFilterIndices::None,
-            Self::List(list) => {
-                TileFilterIndices::List(list.iter().map(|i| (source_index, *i)).collect())
-            }
-        }
-    }
-}
-
-impl TileFilter<TileSourceIndex> {
-    pub fn indices(&self, source_tiles: &[TileIndex]) -> TileFilterIndices {
-        match self {
-            Self::All => TileFilterIndices::AllMulti(source_tiles.to_vec()),
-            Self::None => TileFilterIndices::None,
-            Self::List(list) => TileFilterIndices::List(list.clone()),
-        }
-    }
-}
-
-impl<T> Default for TileFilter<T> {
-    fn default() -> Self {
-        Self::All
-    }
-}
-
-pub enum TileFilterIndices {
-    None,
-    AllSingle(usize, TileIndex),
-    AllMulti(Vec<TileIndex>),
-    List(Vec<TileSourceIndex>),
-}
-
-impl TileFilterIndices {
-    pub fn for_each<E>(&self, f: impl FnMut(TileSourceIndex) -> Result<(), E>) -> Result<(), E> {
-        match self {
-            Self::None => Ok(()),
-            Self::List(list) => list.iter().copied().try_for_each(f),
-            Self::AllSingle(source_index, image_tiles) => (0..*image_tiles)
-                .map(|i| (*source_index, i))
-                .try_for_each(f),
-            Self::AllMulti(source_tiles) => source_tiles
-                .iter()
-                .enumerate()
-                .flat_map(|(source_index, image_tiles)| {
-                    (0..*image_tiles).map(move |i| (source_index, i))
-                })
-                .try_for_each(f),
-        }
     }
 }

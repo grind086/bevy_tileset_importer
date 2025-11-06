@@ -1,14 +1,14 @@
 // This is the equivalent of `complete.ts.ron`
 (
-    tile_size: (16, 16),
     sources: [
         // Multi-tile image
-        ( path: "tiles_abcd.png", layout: Grid() ),
+        ( path: "tiles_abcd.png" ),
         // Single-tile images
         ( path: "tile_e.png" ),
         ( path: "tile_f.png" ),
     ],
-    groups: {
+    tile_size: (16, 16),
+    tile_groups: {
         // A, E
         "vowels": [(0, 0), (1, 0)],
         // B, C, D, F

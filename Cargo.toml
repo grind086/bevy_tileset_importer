@@ -5,12 +5,15 @@ edition = "2024"
 
 [dependencies]
 bevy_app = { version = "0.17", default-features = false }
-bevy_asset = { version = "0.17", default-features = false, features = ["asset_processor"]}
+bevy_asset = { version = "0.17", default-features = false }
 bevy_color = { version = "0.17", default-features = false }
 bevy_image = { version = "0.17", default-features = false }
 bevy_log = { version = "0.17", default-features = false }
 bevy_math = { version = "0.17", default-features = false }
-bevy_platform = { version = "0.17", default-features = false }
+bevy_platform = { version = "0.17", default-features = false, features = [
+    "std",
+    "alloc",
+] }
 bevy_reflect = { version = "0.17", default-features = false }
 
 bincode = { version = "2", features = ["derive", "serde", "std"] }

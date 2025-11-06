@@ -2,8 +2,11 @@ use bevy::{
     prelude::*,
     sprite_render::{AlphaMode2d, TileData, TilemapChunk, TilemapChunkTileData},
 };
+use bevy_image::ImageSampler;
 use bevy_log::LogPlugin;
-use bevy_tileset_importer::{TileIndex, Tileset, TilesetImporterPlugin};
+use bevy_tileset_importer::{
+    TileIndex, Tileset, TilesetImporterPlugin, loader::TilesetLoaderSettings,
+};
 
 const TILE_HEIGHT: f32 = 64.;
 const TILE_DISPLAY_SIZE: UVec2 = UVec2::splat(TILE_HEIGHT as _);
@@ -66,7 +69,12 @@ struct TilesetHandle(Handle<Tileset>);
 
 fn load_tileset(asset_server: Res<AssetServer>, mut commands: Commands) {
     // To access the imported tile groups, we have to wait for the tileset to actually load.
-    commands.insert_resource(TilesetHandle(asset_server.load("minimal.ts.ron")));
+    commands.insert_resource(TilesetHandle(asset_server.load_with_settings(
+        "minimal.ts.ron",
+        |settings: &mut TilesetLoaderSettings| {
+            settings.sampler = ImageSampler::nearest();
+        },
+    )));
 
     // But if we don't need to dynamically get tile indices, we can create a `TilemapChunk`
     // without waiting. It still won't actually render until everything is loaded, but we don't
@@ -75,7 +83,12 @@ fn load_tileset(asset_server: Res<AssetServer>, mut commands: Commands) {
         Transform::from_xyz(0., 2. * TILE_HEIGHT, 0.),
         tile_strip(
             // Note that we select the `texture` sub-asset to get the tileset `Image` handle.
-            asset_server.load("minimal.ts.ron#texture"),
+            asset_server.load_with_settings(
+                "minimal.ts.ron#texture",
+                |settings: &mut TilesetLoaderSettings| {
+                    settings.sampler = ImageSampler::nearest();
+                },
+            ),
             // A, B, C, D, E, F
             &[0, 1, 2, 3, 4, 5],
         ),
