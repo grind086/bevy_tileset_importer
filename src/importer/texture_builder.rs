@@ -152,9 +152,6 @@ impl TextureBuilder {
             } else {
                 downscale_image_bilinear(src, tgt)?;
             }
-
-            self.texture_data
-                .extend_from_slice(tgt.data.as_ref().expect("images are initialized"));
         }
         Ok(())
     }
