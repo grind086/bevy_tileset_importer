@@ -4,7 +4,9 @@ use bevy::{
 };
 use bevy_image::ImageSampler;
 use bevy_log::LogPlugin;
-use bevy_tileset_importer::{TileIndex, Tileset, TilesetImporterPlugin, TilesetLoaderSettings};
+use bevy_tileset_importer::{
+    TileIndex, Tileset, TilesetImporterPlugin, loader::TilesetLoaderSettings,
+};
 
 const TILE_HEIGHT: f32 = 64.;
 const TILE_DISPLAY_SIZE: UVec2 = UVec2::splat(TILE_HEIGHT as _);
