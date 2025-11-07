@@ -112,6 +112,7 @@ fn make_tilemaps(
 
     *run_once = true;
 
+    // Create a line of the tiles in each of our groups
     let vowel_tiles = tileset.group("vowels");
     let consonant_tiles = tileset.group("consonants");
 
