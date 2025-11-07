@@ -232,9 +232,9 @@ fn alpha_discard_mix(colors: &[Color]) -> Color {
     for color in colors {
         let linear = color.to_linear();
         if should_discard(linear.alpha) {
-            // continue;
-            // TODO: Figure out why tile borders are flickering if we don't toss everything.
-            return LinearRgba::NONE.into();
+            continue;
+            // // TODO: Figure out why tile borders are flickering if we don't toss everything.
+            // return LinearRgba::NONE.into();
         }
 
         n += 1;
@@ -257,16 +257,16 @@ fn alpha_discard_mix(colors: &[Color]) -> Color {
 fn alpha_discard_lerp(a: Color, b: Color, t: f32) -> Color {
     let a_lin = a.to_linear();
     if should_discard(a_lin.alpha) {
-        // return b;
-        // TODO: Figure out why tile borders are flickering if we don't toss everything.
-        return LinearRgba::NONE.into();
+        return b;
+        // // TODO: Figure out why tile borders are flickering if we don't toss everything.
+        // return LinearRgba::NONE.into();
     }
 
     let b_lin = b.to_linear();
     if should_discard(b_lin.alpha) {
-        // return a;
-        // TODO: Figure out why tile borders are flickering if we don't toss everything.
-        return LinearRgba::NONE.into();
+        return a;
+        // // TODO: Figure out why tile borders are flickering if we don't toss everything.
+        // return LinearRgba::NONE.into();
     }
 
     a_lin.lerp(b_lin, t).into()
