@@ -1,5 +1,5 @@
 use bevy_asset::{AssetLoader, LoadContext, RenderAssetUsages, io::Reader};
-use bevy_image::ImageSampler;
+use bevy_image::{ImageSampler, ImageSamplerDescriptor};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TilesetLoaderSettings {
     /// Sets the sampler that will be used for the tileset texture.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "TilesetLoaderSettings::de_sampler")]
     pub sampler: ImageSampler,
     /// Sets the asset usage for the tileset texture. Defaults to `RENDER_WORLD`.
     ///
@@ -25,6 +25,13 @@ impl TilesetLoaderSettings {
     const fn default_asset_usage() -> RenderAssetUsages {
         RenderAssetUsages::RENDER_WORLD
     }
+
+    fn de_sampler<'de, D>(de: D) -> Result<ImageSampler, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        TilesetSamplerSetting::deserialize(de).map(Into::into)
+    }
 }
 
 impl Default for TilesetLoaderSettings {
@@ -32,6 +39,27 @@ impl Default for TilesetLoaderSettings {
         Self {
             sampler: ImageSampler::Default,
             asset_usage: Self::default_asset_usage(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename = "ImageSampler")]
+enum TilesetSamplerSetting {
+    #[default]
+    Default,
+    Linear,
+    Nearest,
+    Descriptor(ImageSamplerDescriptor),
+}
+
+impl From<TilesetSamplerSetting> for ImageSampler {
+    fn from(value: TilesetSamplerSetting) -> Self {
+        match value {
+            TilesetSamplerSetting::Default => Self::Default,
+            TilesetSamplerSetting::Linear => Self::linear(),
+            TilesetSamplerSetting::Nearest => Self::nearest(),
+            TilesetSamplerSetting::Descriptor(desc) => Self::Descriptor(desc),
         }
     }
 }
