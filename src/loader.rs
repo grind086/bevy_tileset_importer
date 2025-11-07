@@ -43,7 +43,7 @@ impl Default for TilesetLoaderSettings {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename = "ImageSampler")]
 enum TilesetSamplerSetting {
     #[default]
