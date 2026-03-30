@@ -1,5 +1,6 @@
 use bevy_asset::{AssetLoader, LoadContext, RenderAssetUsages, io::Reader};
 use bevy_image::{ImageSampler, ImageSamplerDescriptor};
+use bevy_reflect::TypePath;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -64,6 +65,7 @@ impl From<TilesetSamplerSetting> for ImageSampler {
     }
 }
 
+#[derive(TypePath)]
 pub struct TilesetLoader {
     /// The file extension to use for auto-detecting this loader, without the leading dot. May be
     /// set to `None` to disable extension-based detection.

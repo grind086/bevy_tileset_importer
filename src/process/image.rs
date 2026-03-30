@@ -4,6 +4,7 @@ use bevy_image::{
 };
 use bevy_math::{URect, UVec2};
 use bevy_platform::collections::HashMap;
+use bevy_reflect::TypePath;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use wgpu_types::TextureFormat;
@@ -80,6 +81,7 @@ impl ImageTileFilter {
     }
 }
 
+#[derive(TypePath)]
 pub struct ImageTilesetLoader {
     image_loader: ImageLoader,
 }
