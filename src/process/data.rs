@@ -3,6 +3,7 @@ use std::{any::TypeId, collections::HashMap};
 use bevy_asset::{AssetLoader, AssetPath, LoadContext, LoadDirectError, io::Reader};
 use bevy_image::Image;
 use bevy_math::{URect, UVec2};
+use bevy_reflect::TypePath;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -56,7 +57,7 @@ impl DataSourceLayout {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, TypePath)]
 pub struct DataTilesetLoader;
 
 impl AssetLoader for DataTilesetLoader {

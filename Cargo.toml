@@ -4,29 +4,29 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy_app = { version = "0.17", default-features = false }
-bevy_asset = { version = "0.17", default-features = false }
-bevy_color = { version = "0.17", default-features = false }
-bevy_image = { version = "0.17", default-features = false }
-bevy_log = { version = "0.17", default-features = false }
-bevy_math = { version = "0.17", default-features = false }
-bevy_platform = { version = "0.17", default-features = false, features = [
+bevy_app = { version = "0.18", default-features = false }
+bevy_asset = { version = "0.18", default-features = false }
+bevy_color = { version = "0.18", default-features = false }
+bevy_image = { version = "0.18", default-features = false }
+bevy_log = { version = "0.18", default-features = false }
+bevy_math = { version = "0.18", default-features = false }
+bevy_platform = { version = "0.18", default-features = false, features = [
     "std",
     "alloc",
 ] }
-bevy_reflect = { version = "0.17", default-features = false }
+bevy_reflect = { version = "0.18", default-features = false }
 
 bincode = { version = "2", features = ["derive", "serde", "std"] }
 flate2 = { version = "1" }
 ron = { version = "0.11" }
 serde = { version = "1", features = ["derive"] }
 thiserror = { version = "2" }
-wgpu-types = { version = "26", default-features = false, features = ["serde"] }
+wgpu-types = { version = "27", default-features = false, features = ["serde"] }
 
 [dev-dependencies]
 # TODO: Replace all enabled features with "2d" in 0.18. This is just an expansion of that so we
 # don't pull in audio and the entire 3d PBR pipeline for examples.
-bevy = { version = "0.17", default-features = false, features = [
+bevy = { version = "0.18", default-features = false, features = [
     "asset_processor",
     # default_app
     "async_executor",
