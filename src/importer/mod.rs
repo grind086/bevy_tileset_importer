@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use bevy_asset::{
     Asset, AssetLoader, AsyncWriteExt,
     io::Writer,
-    meta::{AssetAction, AssetMeta},
     processor::{Process, ProcessContext, ProcessError},
 };
 use bevy_image::Image;
@@ -68,6 +67,7 @@ impl<L: AssetLoader<Asset = TilesetImportData>> Default for TilesetImporterSetti
     }
 }
 
+#[derive(TypePath)]
 pub struct TilesetImporter<L> {
     _marker: PhantomData<fn(&L)>,
 }
@@ -87,20 +87,11 @@ impl<L: AssetLoader<Asset = TilesetImportData>> Process for TilesetImporter<L> {
     async fn process(
         &self,
         context: &mut ProcessContext<'_>,
-        meta: AssetMeta<(), Self>,
+        settings: &Self::Settings,
         writer: &mut Writer,
     ) -> Result<<Self::OutputLoader as AssetLoader>::Settings, ProcessError> {
-        let AssetAction::Process { settings, .. } = meta.asset else {
-            return Err(ProcessError::WrongMetaType);
-        };
-
-        let loader_meta = AssetMeta::<L, ()>::new(AssetAction::Load {
-            loader: core::any::type_name::<L>().to_string(),
-            settings: settings.source_settings,
-        });
-
         let tileset_data = context
-            .load_source_asset(loader_meta)
+            .load_source_asset::<L>(&settings.source_settings)
             .await?
             .take::<L::Asset>()
             .expect("loader type is known");
@@ -124,7 +115,7 @@ impl<L: AssetLoader<Asset = TilesetImportData>> Process for TilesetImporter<L> {
         .await
         .map_err(ProcessError::AssetSaveError)?;
 
-        Ok(settings.loader_settings)
+        Ok(settings.loader_settings.clone())
     }
 }
 
